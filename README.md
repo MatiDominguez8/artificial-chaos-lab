@@ -12,29 +12,38 @@ We define:
 - agents with private goals and limited information,
 - a finite set of actions,
 - consequences enforced by code,
-- logs and metrics for every turn.
+- an objective event log,
+- subjective memories, beliefs and relationships per agent.
 
 The model chooses intentions. **The simulation engine decides what is physically possible and what actually happens.**
+
+An important design rule is that world truth and agent truth are separate: an `Event` records what objectively happened, while each agent may remember and interpret that event differently.
 
 ## Experiment 001 — Tiny Town
 
 Five agents live in a tiny economy. They need food and energy, can work, rest, buy food, give money, talk, or try to steal.
 
-The first milestone intentionally uses a deterministic/random policy instead of an LLM so we can validate the simulation loop and event log before paying the complexity cost of local inference.
+The current baseline intentionally uses deterministic/random policies and a heuristic memory interpreter so we can validate the simulation and cognition layers before adding local inference.
 
-Later we will swap the policy layer for a local model through Ollama/llama.cpp.
+Later we will swap those pieces for a local model through Ollama/llama.cpp.
 
 ## Architecture
 
 ```text
-Experiment config
+                        ┌──────────── Objective Event Log
+                        │
+Experiment config       │
+      │                 │
+      ▼                 │
+ Simulation Engine ─────┤
+      │                 │
+      │                 ▼
+      │          Cognition / Perception
+      │                 │
+      │                 ├── memories
+      │                 ├── beliefs
+      │                 └── relationships
       │
-      ▼
- Simulation Engine ─────► Event log / metrics
-      │
-      ├── World state
-      ├── Agents
-      ├── Action validator
       └── Policy interface
               │
               ├── RandomPolicy (now)
@@ -53,18 +62,23 @@ python -m src.acl.cli --turns 100 --seed 7
 
 1. **Rules create possibility, not outcomes.**
 2. **Chaos should emerge, not be scripted.**
-3. **Bad actions are allowed when the world permits them; consequences matter more than bans.**
-4. **Every experiment must be replayable from logs.**
-5. **Interesting failures are data.**
-6. **This is entertainment/engineering exploration, not social science evidence.**
+3. **World truth and agent belief are different things.**
+4. **Agents should decide what experiences matter to them.**
+5. **Bad actions are allowed when the world permits them; consequences matter more than bans.**
+6. **Every experiment must be replayable from objective logs.**
+7. **Interesting failures are data.**
+8. **This is entertainment/engineering exploration, not social science evidence.**
 
 ## Roadmap
 
 - [x] Minimal turn-based simulation engine
-- [x] Structured actions and event log
+- [x] Structured actions and objective event log
 - [x] Seeded runs for reproducibility
+- [x] Subjective memory, beliefs and relationships
+- [x] Memory retrieval/reinforcement baseline
 - [ ] Ollama local-model policy
-- [ ] Agent memory and relationships
+- [ ] LLM-driven subjective interpretation
+- [ ] Memory consolidation, forgetting and distortion
 - [ ] Spatial 2D map
 - [ ] Replay UI with moving agents and interaction lines
 - [ ] Metrics dashboard
