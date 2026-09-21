@@ -2,15 +2,23 @@ from __future__ import annotations
 
 import random
 
-from .models import Action, ActionType, Agent, Event
+from .cognition import CognitionEngine
+from .models import Action, ActionType, Agent, Event, Memory
 from .policies import Policy
 
 
 class World:
-    def __init__(self, agents: list[Agent], policy: Policy, rng: random.Random) -> None:
+    def __init__(
+        self,
+        agents: list[Agent],
+        policy: Policy,
+        rng: random.Random,
+        cognition: CognitionEngine | None = None,
+    ) -> None:
         self.agents = {agent.name: agent for agent in agents}
         self.policy = policy
         self.rng = rng
+        self.cognition = cognition or CognitionEngine()
         self.turn = 0
         self.events: list[Event] = []
         self.market_food_price = 10
@@ -28,6 +36,19 @@ class World:
             self._tick_needs(agent)
 
         return self.events[start:]
+
+    def recall(
+        self,
+        agent_name: str,
+        subject: str | None = None,
+        limit: int = 5,
+    ) -> list[Memory]:
+        return self.cognition.retrieve(
+            self.agents[agent_name],
+            current_turn=self.turn,
+            subject=subject,
+            limit=limit,
+        )
 
     def _apply(self, action: Action) -> None:
         actor = self.agents[action.actor]
@@ -48,9 +69,18 @@ class World:
             if actor.money >= self.market_food_price:
                 actor.money -= self.market_food_price
                 actor.food += 1
-                self._log(actor, "buy_food", f"{actor.name} bought food for {self.market_food_price} coins.", amount=self.market_food_price)
+                self._log(
+                    actor,
+                    "buy_food",
+                    f"{actor.name} bought food for {self.market_food_price} coins.",
+                    amount=self.market_food_price,
+                )
             else:
-                self._log(actor, "failed", f"{actor.name} tried to buy food but could not afford it.")
+                self._log(
+                    actor,
+                    "failed",
+                    f"{actor.name} tried to buy food but could not afford it.",
+                )
             return
 
         if action.kind is ActionType.GIVE and target:
@@ -59,7 +89,13 @@ class World:
                 actor.money -= amount
                 target.money += amount
                 actor.reputation = min(100, actor.reputation + 2)
-                self._log(actor, "give", f"{actor.name} gave {amount} coins to {target.name}.", target, amount)
+                self._log(
+                    actor,
+                    "give",
+                    f"{actor.name} gave {amount} coins to {target.name}.",
+                    target,
+                    amount,
+                )
             return
 
         if action.kind is ActionType.STEAL and target:
@@ -69,16 +105,30 @@ class World:
                 target.money -= requested
                 actor.money += requested
                 actor.reputation = max(0, actor.reputation - 8)
-                self._log(actor, "steal", f"{actor.name} stole {requested} coins from {target.name}.", target, requested)
+                self._log(
+                    actor,
+                    "steal",
+                    f"{actor.name} stole {requested} coins from {target.name}.",
+                    target,
+                    requested,
+                )
             else:
                 actor.reputation = max(0, actor.reputation - 3)
-                self._log(actor, "failed_steal", f"{actor.name} tried to steal from {target.name} and failed.", target)
+                self._log(
+                    actor,
+                    "failed_steal",
+                    f"{actor.name} tried to steal from {target.name} and failed.",
+                    target,
+                )
             return
 
         if action.kind is ActionType.TALK and target:
-            actor.memories.append(f"Talked with {target.name} on turn {self.turn}.")
-            target.memories.append(f"Talked with {actor.name} on turn {self.turn}.")
-            self._log(actor, "talk", f"{actor.name} talked with {target.name}.", target)
+            self._log(
+                actor,
+                "talk",
+                f"{actor.name} talked with {target.name}.",
+                target,
+            )
             return
 
         self._log(actor, "invalid", f"{actor.name} attempted an invalid action.")
@@ -103,13 +153,13 @@ class World:
         target: Agent | None = None,
         amount: int = 0,
     ) -> None:
-        self.events.append(
-            Event(
-                turn=self.turn,
-                actor=actor.name,
-                kind=kind,
-                summary=summary,
-                target=target.name if target else None,
-                amount=amount,
-            )
+        event = Event(
+            turn=self.turn,
+            actor=actor.name,
+            kind=kind,
+            summary=summary,
+            target=target.name if target else None,
+            amount=amount,
         )
+        self.events.append(event)
+        self.cognition.observe(event, self.agents)
