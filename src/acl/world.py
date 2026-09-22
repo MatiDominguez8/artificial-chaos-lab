@@ -30,7 +30,11 @@ class World:
         for agent in list(self.agents.values()):
             if not agent.alive:
                 continue
-            others = [a for a in self.agents.values() if a.name != agent.name and a.alive]
+            others = [
+                other
+                for other in self.agents.values()
+                if other.name != agent.name and other.alive
+            ]
             action = self.policy.choose_action(agent, others)
             self._apply(action)
             self._tick_needs(agent)
@@ -57,12 +61,23 @@ class World:
         if action.kind is ActionType.WORK:
             actor.money += 12
             actor.energy = max(0, actor.energy - 12)
-            self._log(actor, "work", f"{actor.name} worked and earned 12 coins.", amount=12)
+            self._log(
+                actor,
+                "work",
+                f"{actor.name} worked and earned 12 coins.",
+                amount=12,
+                reason=action.reason,
+            )
             return
 
         if action.kind is ActionType.REST:
             actor.energy = min(100, actor.energy + 30)
-            self._log(actor, "rest", f"{actor.name} rested.")
+            self._log(
+                actor,
+                "rest",
+                f"{actor.name} rested.",
+                reason=action.reason,
+            )
             return
 
         if action.kind is ActionType.BUY_FOOD:
@@ -74,12 +89,14 @@ class World:
                     "buy_food",
                     f"{actor.name} bought food for {self.market_food_price} coins.",
                     amount=self.market_food_price,
+                    reason=action.reason,
                 )
             else:
                 self._log(
                     actor,
                     "failed",
                     f"{actor.name} tried to buy food but could not afford it.",
+                    reason=action.reason,
                 )
             return
 
@@ -95,6 +112,7 @@ class World:
                     f"{actor.name} gave {amount} coins to {target.name}.",
                     target,
                     amount,
+                    reason=action.reason,
                 )
             return
 
@@ -111,6 +129,7 @@ class World:
                     f"{actor.name} stole {requested} coins from {target.name}.",
                     target,
                     requested,
+                    reason=action.reason,
                 )
             else:
                 actor.reputation = max(0, actor.reputation - 3)
@@ -119,6 +138,7 @@ class World:
                     "failed_steal",
                     f"{actor.name} tried to steal from {target.name} and failed.",
                     target,
+                    reason=action.reason,
                 )
             return
 
@@ -128,10 +148,16 @@ class World:
                 "talk",
                 f"{actor.name} talked with {target.name}.",
                 target,
+                reason=action.reason,
             )
             return
 
-        self._log(actor, "invalid", f"{actor.name} attempted an invalid action.")
+        self._log(
+            actor,
+            "invalid",
+            f"{actor.name} attempted an invalid action.",
+            reason=action.reason,
+        )
 
     def _tick_needs(self, agent: Agent) -> None:
         agent.hunger = min(100, agent.hunger + 6)
@@ -152,6 +178,7 @@ class World:
         summary: str,
         target: Agent | None = None,
         amount: int = 0,
+        reason: str | None = None,
     ) -> None:
         event = Event(
             turn=self.turn,
@@ -160,6 +187,7 @@ class World:
             summary=summary,
             target=target.name if target else None,
             amount=amount,
+            reason=reason,
         )
         self.events.append(event)
         self.cognition.observe(event, self.agents)
