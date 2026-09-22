@@ -59,6 +59,14 @@ class World:
         target = self.agents.get(action.target) if action.target else None
 
         if action.kind is ActionType.WORK:
+            if actor.energy < 15:
+                self._log(
+                    actor,
+                    "failed_work",
+                    f"{actor.name} was too exhausted to work.",
+                    reason=action.reason,
+                )
+                return
             actor.money += 12
             actor.energy = max(0, actor.energy - 12)
             self._log(
@@ -143,12 +151,14 @@ class World:
             return
 
         if action.kind is ActionType.TALK and target:
+            message = action.message or "..."
             self._log(
                 actor,
                 "talk",
-                f"{actor.name} talked with {target.name}.",
+                f'{actor.name} said to {target.name}: "{message}"',
                 target,
                 reason=action.reason,
+                message=message,
             )
             return
 
@@ -179,6 +189,7 @@ class World:
         target: Agent | None = None,
         amount: int = 0,
         reason: str | None = None,
+        message: str | None = None,
     ) -> None:
         event = Event(
             turn=self.turn,
@@ -188,6 +199,7 @@ class World:
             target=target.name if target else None,
             amount=amount,
             reason=reason,
+            message=message,
         )
         self.events.append(event)
         self.cognition.observe(event, self.agents)
