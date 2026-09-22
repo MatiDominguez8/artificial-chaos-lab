@@ -90,3 +90,18 @@ def test_seeded_random_runs_are_reproducible():
 
     assert first.events == second.events
     assert first.agents == second.agents
+
+
+
+def test_tiny_town_agents_have_distinct_scenario_agnostic_profiles():
+    from src.acl.simulation import tiny_town_agents
+
+    agents = tiny_town_agents()
+    profiles = [agent.profile for agent in agents]
+
+    assert len({tuple(sorted(profile.traits.items())) for profile in profiles}) == 5
+    assert all(profile.goals for profile in profiles)
+
+    forbidden_scenario_traits = {"money", "hunger", "energy", "food", "reputation"}
+    for profile in profiles:
+        assert forbidden_scenario_traits.isdisjoint(profile.traits)
