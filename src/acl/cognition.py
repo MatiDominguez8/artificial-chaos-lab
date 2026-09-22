@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Any, Protocol
 
 from .models import Agent, Belief, Event, Memory
+from .ollama_client import OllamaClient
 
 
 @dataclass(frozen=True)
@@ -24,12 +25,7 @@ class MemoryInterpreter(Protocol):
 
 
 class HeuristicMemoryInterpreter:
-    """Deterministic baseline until an LLM interprets events subjectively.
-
-    It intentionally keeps the mechanism separate from the rules of the world.
-    Later an LLM can replace this class without changing the event log or the
-    simulation engine.
-    """
+    """Deterministic baseline for objective events with obvious consequences."""
 
     def interpret(self, observer: Agent, event: Event) -> MemoryDecision:
         is_actor = observer.name == event.actor
@@ -101,11 +97,13 @@ class HeuristicMemoryInterpreter:
                 emotional_intensity=0.30,
             )
 
+        # Talking has no hard-coded social reward. With an LLM interpreter the
+        # content can be perceived as positive, negative, suspicious or trivial.
         if event.kind == "talk" and counterpart:
             return MemoryDecision(
                 remember=False,
                 subject=counterpart,
-                relationship_delta=0.02,
+                relationship_delta=0.0,
             )
 
         if event.kind == "collapse" and is_actor:
@@ -118,6 +116,148 @@ class HeuristicMemoryInterpreter:
             )
 
         return MemoryDecision(remember=False)
+
+
+class OllamaMemoryInterpreter:
+    """Use the local model for subjective interpretation of ambiguous events.
+
+    For now only conversations go through the model. Objective events such as a
+    successful theft still use the deterministic baseline.
+    """
+
+    def __init__(
+        self,
+        *,
+        client: OllamaClient,
+        model: str = "qwen3:14b",
+        temperature: float = 0.7,
+        num_ctx: int = 4096,
+        fallback: MemoryInterpreter | None = None,
+    ) -> None:
+        self.client = client
+        self.model = model
+        self.temperature = temperature
+        self.num_ctx = num_ctx
+        self.fallback = fallback or HeuristicMemoryInterpreter()
+
+    def interpret(self, observer: Agent, event: Event) -> MemoryDecision:
+        if event.kind != "talk" or not event.target:
+            return self.fallback.interpret(observer, event)
+
+        is_actor = observer.name == event.actor
+        is_target = observer.name == event.target
+        if not (is_actor or is_target):
+            return MemoryDecision(remember=False)
+
+        counterpart = event.target if is_actor else event.actor
+        role = "speaker" if is_actor else "recipient"
+        relationship = observer.relationships.get(counterpart, 0.0)
+
+        traits = "\n".join(
+            f"- {name}: {value:.2f}"
+            for name, value in sorted(observer.profile.traits.items())
+        ) or "- none"
+        goals = "\n".join(f"- {goal}" for goal in observer.profile.goals) or "- none"
+
+        system = """You are interpreting one social event from one character's subjective point of view.
+Do not decide what objectively happened; that is already fixed by the event.
+Decide what this observer makes of the interaction.
+Different personalities may interpret the same words differently.
+A conversation can improve, worsen or leave a relationship unchanged.
+Do not force every conversation to matter.
+Return only the requested structured JSON. Do not provide chain-of-thought."""
+
+        user = f"""OBSERVER: {observer.name}
+ROLE IN EVENT: {role}
+OTHER PERSON: {counterpart}
+CURRENT RELATIONSHIP: {relationship:+.2f}
+
+PERSONALITY
+{traits}
+
+GOALS
+{goals}
+
+OBJECTIVE EVENT
+{event.summary}
+
+MESSAGE
+{event.message or "(no message content)"}
+
+Interpret this interaction from {observer.name}'s perspective."""
+
+        schema: dict[str, Any] = {
+            "type": "object",
+            "properties": {
+                "remember": {"type": "boolean"},
+                "content": {"type": "string"},
+                "importance": {"type": "number", "minimum": 0, "maximum": 1},
+                "emotional_intensity": {"type": "number", "minimum": 0, "maximum": 1},
+                "confidence": {"type": "number", "minimum": 0, "maximum": 1},
+                "relationship_delta": {
+                    "type": "number",
+                    "minimum": -0.25,
+                    "maximum": 0.25,
+                },
+                "belief": {"type": "string"},
+                "belief_confidence": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 1,
+                },
+            },
+            "required": [
+                "remember",
+                "content",
+                "importance",
+                "emotional_intensity",
+                "confidence",
+                "relationship_delta",
+                "belief",
+                "belief_confidence",
+            ],
+        }
+
+        result = self.client.chat(
+            model=self.model,
+            messages=[
+                {"role": "system", "content": system},
+                {"role": "user", "content": user},
+            ],
+            schema=schema,
+            temperature=self.temperature,
+            num_ctx=self.num_ctx,
+        )
+
+        remember = bool(result.get("remember", False))
+        content = str(result.get("content", "")).strip()
+        belief = str(result.get("belief", "")).strip() or None
+
+        return MemoryDecision(
+            remember=remember,
+            content=content if remember else "",
+            subject=counterpart,
+            importance=self._number(result.get("importance"), 0.0),
+            emotional_intensity=self._number(
+                result.get("emotional_intensity"), 0.0
+            ),
+            confidence=self._number(result.get("confidence"), 1.0),
+            relationship_delta=max(
+                -0.25,
+                min(0.25, self._number(result.get("relationship_delta"), 0.0)),
+            ),
+            belief=belief,
+            belief_confidence=self._number(
+                result.get("belief_confidence"), 0.0
+            ),
+        )
+
+    @staticmethod
+    def _number(value: Any, default: float) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return default
 
 
 class CognitionEngine:
@@ -149,9 +289,7 @@ class CognitionEngine:
         observer: Agent,
         event: Event,
     ) -> None:
-        observer.working_memory.append(
-            f"Turn {event.turn}: {event.summary}"
-        )
+        observer.working_memory.append(f"Turn {event.turn}: {event.summary}")
         if len(observer.working_memory) > self.working_memory_limit:
             del observer.working_memory[:-self.working_memory_limit]
 
