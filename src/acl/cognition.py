@@ -20,6 +20,28 @@ class MemoryDecision:
     belief_confidence: float = 0.0
 
 
+@dataclass(frozen=True)
+class CognitionTrace:
+    turn: int
+    observer: str
+    event_kind: str
+    event_actor: str
+    event_target: str | None
+    event_summary: str
+    message: str | None
+    subject: str | None
+    remember: bool
+    memory_content: str
+    importance: float
+    emotional_intensity: float
+    confidence: float
+    relationship_before: float | None
+    relationship_delta: float
+    relationship_after: float | None
+    belief: str | None
+    belief_confidence: float
+
+
 class MemoryInterpreter(Protocol):
     def interpret(self, observer: Agent, event: Event) -> MemoryDecision: ...
 
@@ -270,6 +292,7 @@ class CognitionEngine:
     ) -> None:
         self.interpreter = interpreter or HeuristicMemoryInterpreter()
         self.working_memory_limit = working_memory_limit
+        self.traces: list[CognitionTrace] = []
 
     def observe(self, event: Event, agents: dict[str, Agent]) -> None:
         observer_names = {event.actor}
@@ -282,7 +305,39 @@ class CognitionEngine:
                 continue
             self._remember_recent_observation(observer, event)
             decision = self.interpreter.interpret(observer, event)
+            relationship_before = (
+                observer.relationships.get(decision.subject, 0.0)
+                if decision.subject
+                else None
+            )
             self._apply_decision(observer, event, decision)
+            relationship_after = (
+                observer.relationships.get(decision.subject, 0.0)
+                if decision.subject
+                else None
+            )
+            self.traces.append(
+                CognitionTrace(
+                    turn=event.turn,
+                    observer=observer.name,
+                    event_kind=event.kind,
+                    event_actor=event.actor,
+                    event_target=event.target,
+                    event_summary=event.summary,
+                    message=event.message,
+                    subject=decision.subject,
+                    remember=decision.remember,
+                    memory_content=decision.content,
+                    importance=decision.importance,
+                    emotional_intensity=decision.emotional_intensity,
+                    confidence=decision.confidence,
+                    relationship_before=relationship_before,
+                    relationship_delta=decision.relationship_delta,
+                    relationship_after=relationship_after,
+                    belief=decision.belief,
+                    belief_confidence=decision.belief_confidence,
+                )
+            )
 
     def _remember_recent_observation(
         self,
