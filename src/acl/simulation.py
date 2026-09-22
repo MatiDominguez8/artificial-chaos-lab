@@ -124,9 +124,16 @@ def run(
     log_path: Path | None = None,
     policy: Policy | None = None,
     cognition: CognitionEngine | None = None,
+    cognition_log_path: Path | None = None,
 ) -> World:
     world = build_world(seed, policy=policy, cognition=cognition)
     handle = log_path.open("w", encoding="utf-8") if log_path else None
+    cognition_handle = (
+        cognition_log_path.open("w", encoding="utf-8")
+        if cognition_log_path
+        else None
+    )
+    trace_index = 0
     try:
         for _ in range(turns):
             for event in world.step():
@@ -134,7 +141,15 @@ def run(
                     handle.write(
                         json.dumps(asdict(event), ensure_ascii=False) + "\n"
                     )
+            if cognition_handle:
+                for trace in world.cognition.traces[trace_index:]:
+                    cognition_handle.write(
+                        json.dumps(asdict(trace), ensure_ascii=False) + "\n"
+                    )
+                trace_index = len(world.cognition.traces)
     finally:
         if handle:
             handle.close()
+        if cognition_handle:
+            cognition_handle.close()
     return world

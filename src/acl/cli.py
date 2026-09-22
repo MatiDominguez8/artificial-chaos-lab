@@ -17,6 +17,11 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--log", type=Path, default=Path("logs/latest.jsonl"))
     parser.add_argument(
+        "--cognition-log",
+        type=Path,
+        default=Path("logs/latest_cognition.jsonl"),
+    )
+    parser.add_argument(
         "--policy",
         choices=("random", "ollama"),
         default="random",
@@ -51,12 +56,14 @@ def main() -> None:
         )
 
     args.log.parent.mkdir(parents=True, exist_ok=True)
+    args.cognition_log.parent.mkdir(parents=True, exist_ok=True)
     world = run(
         turns=args.turns,
         seed=args.seed,
         log_path=args.log,
         policy=policy,
         cognition=cognition,
+        cognition_log_path=args.cognition_log,
     )
 
     print(f"Finished {world.turn} turns. Events: {len(world.events)}")
@@ -67,6 +74,7 @@ def main() -> None:
             f"| rep={agent.reputation:>3} | alive={agent.alive}"
         )
     print(f"Log: {args.log}")
+    print(f"Cognition log: {args.cognition_log}")
 
 
 if __name__ == "__main__":
