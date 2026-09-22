@@ -123,8 +123,13 @@ class HeuristicMemoryInterpreter:
 class CognitionEngine:
     """Turns objective events into each agent's subjective internal state."""
 
-    def __init__(self, interpreter: MemoryInterpreter | None = None) -> None:
+    def __init__(
+        self,
+        interpreter: MemoryInterpreter | None = None,
+        working_memory_limit: int = 8,
+    ) -> None:
         self.interpreter = interpreter or HeuristicMemoryInterpreter()
+        self.working_memory_limit = working_memory_limit
 
     def observe(self, event: Event, agents: dict[str, Agent]) -> None:
         observer_names = {event.actor}
@@ -135,8 +140,20 @@ class CognitionEngine:
             observer = agents.get(name)
             if observer is None:
                 continue
+            self._remember_recent_observation(observer, event)
             decision = self.interpreter.interpret(observer, event)
             self._apply_decision(observer, event, decision)
+
+    def _remember_recent_observation(
+        self,
+        observer: Agent,
+        event: Event,
+    ) -> None:
+        observer.working_memory.append(
+            f"Turn {event.turn}: {event.summary}"
+        )
+        if len(observer.working_memory) > self.working_memory_limit:
+            del observer.working_memory[:-self.working_memory_limit]
 
     def retrieve(
         self,
