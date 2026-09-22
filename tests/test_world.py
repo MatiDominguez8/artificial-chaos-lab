@@ -125,3 +125,38 @@ def test_working_memory_tracks_recent_direct_experience_and_is_bounded():
     assert len(ada.working_memory) == 2
     assert ada.working_memory[0].startswith("Turn 2:")
     assert ada.working_memory[1].startswith("Turn 3:")
+
+
+
+class TalkPolicy:
+    def choose_action(self, agent, others):
+        if agent.name == "Ada":
+            return Action(
+                "Ada",
+                ActionType.TALK,
+                target="Bruno",
+                message="I think we should cooperate.",
+            )
+        return Action(agent.name, ActionType.REST)
+
+
+def test_work_requires_minimum_energy():
+    rng = random.Random(1)
+    ada = Agent("Ada", money=100, energy=10)
+    world = World([ada], WorkPolicy(), rng)
+
+    world.step()
+
+    assert ada.money == 100
+    assert any(event.kind == "failed_work" for event in world.events)
+
+
+def test_talk_preserves_exact_message_in_objective_event():
+    rng = random.Random(1)
+    world = World([Agent("Ada"), Agent("Bruno")], TalkPolicy(), rng)
+
+    world.step()
+
+    event = next(event for event in world.events if event.kind == "talk")
+    assert event.message == "I think we should cooperate."
+    assert "I think we should cooperate." in event.summary
