@@ -1,7 +1,8 @@
 import json
 from unittest.mock import patch
 
-from src.acl.models import Agent, AgentProfile
+from src.acl.cognition import OllamaMemoryInterpreter
+from src.acl.models import Agent, AgentProfile, Event
 from src.acl.ollama_client import OllamaClient
 from src.acl.policies import OllamaPolicy
 
@@ -123,3 +124,46 @@ def test_ollama_client_sends_nothink_and_json_schema():
     assert captured["payload"]["format"] == schema
     assert captured["payload"]["options"]["num_ctx"] == 4096
     assert result["action"] == "rest"
+
+
+
+def test_ollama_memory_interpreter_can_change_relationship_from_message():
+    fake = FakeClient(
+        {
+            "remember": True,
+            "content": "Bruno offered to cooperate with me.",
+            "importance": 0.7,
+            "emotional_intensity": 0.4,
+            "confidence": 0.9,
+            "relationship_delta": 0.12,
+            "belief": "Bruno may be cooperative.",
+            "belief_confidence": 0.75,
+        }
+    )
+    observer = Agent(
+        "Ada",
+        profile=AgentProfile(
+            traits={"trustfulness": 0.4},
+            goals=["Stay secure."],
+        ),
+    )
+    event = Event(
+        turn=1,
+        actor="Bruno",
+        kind="talk",
+        summary='Bruno said to Ada: "Let us cooperate."',
+        target="Ada",
+        message="Let us cooperate.",
+    )
+
+    decision = OllamaMemoryInterpreter(
+        client=fake,
+        model="qwen3:14b",
+    ).interpret(observer, event)
+
+    assert decision.remember is True
+    assert decision.subject == "Bruno"
+    assert decision.relationship_delta == 0.12
+    assert decision.belief == "Bruno may be cooperative."
+    prompt = fake.calls[0]["messages"][1]["content"]
+    assert "Let us cooperate." in prompt

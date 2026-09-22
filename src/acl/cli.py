@@ -3,6 +3,7 @@ from __future__ import annotations
 import argparse
 from pathlib import Path
 
+from .cognition import CognitionEngine, OllamaMemoryInterpreter
 from .ollama_client import OllamaClient
 from .policies import OllamaPolicy
 from .simulation import run
@@ -31,12 +32,22 @@ def main() -> None:
     args = parser.parse_args()
 
     policy = None
+    cognition = None
     if args.policy == "ollama":
+        client = OllamaClient(base_url=args.ollama_url)
         policy = OllamaPolicy(
             model=args.model,
-            client=OllamaClient(base_url=args.ollama_url),
+            client=client,
             temperature=args.temperature,
             num_ctx=args.context,
+        )
+        cognition = CognitionEngine(
+            interpreter=OllamaMemoryInterpreter(
+                client=client,
+                model=args.model,
+                temperature=0.7,
+                num_ctx=args.context,
+            )
         )
 
     args.log.parent.mkdir(parents=True, exist_ok=True)
@@ -45,6 +56,7 @@ def main() -> None:
         seed=args.seed,
         log_path=args.log,
         policy=policy,
+        cognition=cognition,
     )
 
     print(f"Finished {world.turn} turns. Events: {len(world.events)}")

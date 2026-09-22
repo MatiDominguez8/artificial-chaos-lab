@@ -15,12 +15,7 @@ class ActionType(StrEnum):
 
 @dataclass
 class AgentProfile:
-    """Scenario-agnostic psychological starting point for an agent.
-
-    Traits are intentionally generic. Scenario-specific concepts such as money,
-    hunger, teams, laws or spaceship oxygen belong to the experiment/world, not
-    to the agent profile.
-    """
+    """Scenario-agnostic psychological starting point for an agent."""
 
     traits: dict[str, float] = field(default_factory=dict)
     goals: list[str] = field(default_factory=list)
@@ -86,3 +81,4 @@ class Event:
     target: str | None = None
     amount: int = 0
     reason: str | None = None
+    message: str | None = None
