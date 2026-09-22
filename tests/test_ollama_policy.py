@@ -33,6 +33,7 @@ def test_ollama_policy_returns_structured_action_without_leaking_private_state()
         money=17,
         hunger=70,
         energy=42,
+        working_memory=["Turn 4: Ada talked with Bruno."],
         profile=AgentProfile(
             traits={"risk_tolerance": 0.17, "curiosity": 0.83},
             goals=["Learn what Bruno wants."],
@@ -63,6 +64,7 @@ def test_ollama_policy_returns_structured_action_without_leaking_private_state()
     assert "risk_tolerance: 0.17" in prompt
     assert "curiosity: 0.83" in prompt
     assert "Learn what Bruno wants." in prompt
+    assert "Turn 4: Ada talked with Bruno." in prompt
     assert "999" not in prompt
     assert "hunger: 3" not in prompt
     assert "risk_tolerance: 0.99" not in prompt
