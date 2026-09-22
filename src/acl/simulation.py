@@ -5,6 +5,7 @@ import random
 from dataclasses import asdict
 from pathlib import Path
 
+from .cognition import CognitionEngine
 from .models import Agent, AgentProfile
 from .policies import Policy, RandomPolicy
 from .world import World
@@ -103,9 +104,18 @@ def tiny_town_agents() -> list[Agent]:
     return [Agent(name=name, profile=profile) for name, profile in profiles.items()]
 
 
-def build_world(seed: int = 7, policy: Policy | None = None) -> World:
+def build_world(
+    seed: int = 7,
+    policy: Policy | None = None,
+    cognition: CognitionEngine | None = None,
+) -> World:
     rng = random.Random(seed)
-    return World(tiny_town_agents(), policy or RandomPolicy(rng), rng)
+    return World(
+        tiny_town_agents(),
+        policy or RandomPolicy(rng),
+        rng,
+        cognition=cognition,
+    )
 
 
 def run(
@@ -113,8 +123,9 @@ def run(
     seed: int = 7,
     log_path: Path | None = None,
     policy: Policy | None = None,
+    cognition: CognitionEngine | None = None,
 ) -> World:
-    world = build_world(seed, policy=policy)
+    world = build_world(seed, policy=policy, cognition=cognition)
     handle = log_path.open("w", encoding="utf-8") if log_path else None
     try:
         for _ in range(turns):
