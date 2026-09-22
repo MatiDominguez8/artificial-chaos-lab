@@ -57,6 +57,7 @@ class Agent:
     food: int = 1
     reputation: int = 50
     profile: AgentProfile = field(default_factory=AgentProfile)
+    working_memory: list[str] = field(default_factory=list)
     memories: list[Memory] = field(default_factory=list)
     beliefs: list[Belief] = field(default_factory=list)
     relationships: dict[str, float] = field(default_factory=dict)
