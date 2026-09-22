@@ -128,11 +128,19 @@ class OllamaPolicy:
             for belief in agent.beliefs[-5:]
         ]
 
+        trait_lines = [
+            f"- {name}: {value:.2f}"
+            for name, value in sorted(agent.profile.traits.items())
+        ]
+        goal_lines = [f"- {goal}" for goal in agent.profile.goals]
+
         system = """You control one person inside a simulation.
 You are NOT the simulation engine and you are NOT omniscient.
 Choose one action using only the information you are given.
 Do not invent resources, people, rules, actions or hidden facts.
 Your decision may be selfish, cooperative, impulsive or cautious; do not try to make the society succeed.
+Personality traits are tendencies, not hard rules. Goals can compete with each other.
+Do not act like an optimal game-playing bot unless the supplied personality actually points that way.
 
 Known mechanics:
 - work: earn 12 coins and spend 12 energy.
@@ -158,6 +166,12 @@ hunger: {agent.hunger}/100
 energy: {agent.energy}/100
 stored food: {agent.food}
 reputation: {agent.reputation}/100
+
+YOUR STARTING PERSONALITY
+{chr(10).join(trait_lines) if trait_lines else "- no strong predefined traits"}
+
+YOUR CURRENT GOALS
+{chr(10).join(goal_lines) if goal_lines else "- no explicit goals"}
 
 PEOPLE YOU CURRENTLY KNOW
 {chr(10).join(people) if people else "- nobody"}
