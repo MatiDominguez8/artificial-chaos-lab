@@ -1,7 +1,7 @@
 import json
 from unittest.mock import patch
 
-from src.acl.models import Agent
+from src.acl.models import Agent, AgentProfile
 from src.acl.ollama_client import OllamaClient
 from src.acl.policies import OllamaPolicy
 
@@ -28,8 +28,26 @@ def test_ollama_policy_returns_structured_action_without_leaking_private_state()
     )
     policy = OllamaPolicy(client=fake, model="qwen3:14b")
 
-    ada = Agent("Ada", money=17, hunger=70, energy=42)
-    bruno = Agent("Bruno", money=999, hunger=3, energy=91)
+    ada = Agent(
+        "Ada",
+        money=17,
+        hunger=70,
+        energy=42,
+        profile=AgentProfile(
+            traits={"risk_tolerance": 0.17, "curiosity": 0.83},
+            goals=["Learn what Bruno wants."],
+        ),
+    )
+    bruno = Agent(
+        "Bruno",
+        money=999,
+        hunger=3,
+        energy=91,
+        profile=AgentProfile(
+            traits={"risk_tolerance": 0.99},
+            goals=["Keep a secret objective private."],
+        ),
+    )
 
     action = policy.choose_action(ada, [bruno])
 
@@ -42,8 +60,13 @@ def test_ollama_policy_returns_structured_action_without_leaking_private_state()
     assert "money: 17" in prompt
     assert "hunger: 70/100" in prompt
     assert "Bruno: relationship=+0.00" in prompt
+    assert "risk_tolerance: 0.17" in prompt
+    assert "curiosity: 0.83" in prompt
+    assert "Learn what Bruno wants." in prompt
     assert "999" not in prompt
     assert "hunger: 3" not in prompt
+    assert "risk_tolerance: 0.99" not in prompt
+    assert "Keep a secret objective private." not in prompt
 
 
 def test_ollama_client_sends_nothink_and_json_schema():
