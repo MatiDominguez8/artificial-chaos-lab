@@ -105,3 +105,23 @@ def test_tiny_town_agents_have_distinct_scenario_agnostic_profiles():
     forbidden_scenario_traits = {"money", "hunger", "energy", "food", "reputation"}
     for profile in profiles:
         assert forbidden_scenario_traits.isdisjoint(profile.traits)
+
+
+
+def test_working_memory_tracks_recent_direct_experience_and_is_bounded():
+    rng = random.Random(1)
+    world = World(
+        [Agent("Ada"), Agent("Bruno")],
+        WorkPolicy(),
+        rng,
+        cognition=CognitionEngine(working_memory_limit=2),
+    )
+
+    world.step()
+    world.step()
+    world.step()
+
+    ada = world.agents["Ada"]
+    assert len(ada.working_memory) == 2
+    assert ada.working_memory[0].startswith("Turn 2:")
+    assert ada.working_memory[1].startswith("Turn 3:")
