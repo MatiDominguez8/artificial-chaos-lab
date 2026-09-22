@@ -23,9 +23,7 @@ An important design rule is that world truth and agent truth are separate: an `E
 
 Five agents live in a tiny economy. They need food and energy, can work, rest, buy food, give money, talk, or try to steal.
 
-The current baseline intentionally uses deterministic/random policies and a heuristic memory interpreter so we can validate the simulation and cognition layers before adding local inference.
-
-Later we will swap those pieces for a local model through Ollama/llama.cpp.
+The simulation can run with a deterministic/random baseline or with one local Ollama model shared by all agents. Each agent gets its own private context, memories, beliefs and relationships; the model itself is not duplicated per person.
 
 ## Architecture
 
@@ -46,17 +44,32 @@ Experiment config       │
       │
       └── Policy interface
               │
-              ├── RandomPolicy (now)
-              └── LocalLLMPolicy (next)
+              ├── RandomPolicy
+              └── OllamaPolicy
+                       │
+                       ▼
+                 qwen3:14b local
 ```
 
 ## Run
 
 Requires Python 3.11+.
 
+Random baseline:
+
 ```bash
 python -m src.acl.cli --turns 100 --seed 7
 ```
+
+Local Qwen through Ollama:
+
+```bash
+python -m src.acl.cli --policy ollama --model qwen3:14b --turns 3
+```
+
+Start with only a few turns. Five agents across three turns already produce roughly fifteen local-model decisions.
+
+See [docs/LOCAL_OLLAMA.md](docs/LOCAL_OLLAMA.md) for the local setup and information-boundary details.
 
 ## Design principles
 
@@ -64,10 +77,11 @@ python -m src.acl.cli --turns 100 --seed 7
 2. **Chaos should emerge, not be scripted.**
 3. **World truth and agent belief are different things.**
 4. **Agents should decide what experiences matter to them.**
-5. **Bad actions are allowed when the world permits them; consequences matter more than bans.**
-6. **Every experiment must be replayable from objective logs.**
-7. **Interesting failures are data.**
-8. **This is entertainment/engineering exploration, not social science evidence.**
+5. **Agents are not omniscient; private state stays private.**
+6. **Bad actions are allowed when the world permits them; consequences matter more than bans.**
+7. **Every experiment must be replayable from objective logs.**
+8. **Interesting failures are data.**
+9. **This is entertainment/engineering exploration, not social science evidence.**
 
 ## Roadmap
 
@@ -76,7 +90,7 @@ python -m src.acl.cli --turns 100 --seed 7
 - [x] Seeded runs for reproducibility
 - [x] Subjective memory, beliefs and relationships
 - [x] Memory retrieval/reinforcement baseline
-- [ ] Ollama local-model policy
+- [x] Ollama local-model policy
 - [ ] LLM-driven subjective interpretation
 - [ ] Memory consolidation, forgetting and distortion
 - [ ] Spatial 2D map

@@ -59,6 +59,7 @@ class Action:
     target: str | None = None
     amount: int = 0
     message: str | None = None
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -69,3 +70,4 @@ class Event:
     summary: str
     target: str | None = None
     amount: int = 0
+    reason: str | None = None
