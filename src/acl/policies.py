@@ -144,12 +144,12 @@ Personality traits are tendencies, not hard rules. Goals can compete with each o
 Do not act like an optimal game-playing bot unless the supplied personality actually points that way.
 
 Known mechanics:
-- work: earn 12 coins and spend 12 energy.
+- work: requires at least 15 energy; earn 12 coins and spend 12 energy.
 - rest: recover 30 energy.
 - buy_food: costs 10 coins and adds 1 stored food.
 - give: transfer some of your coins to another person and slightly improves reputation.
 - steal: attempt to take coins from another person; it can fail and harms reputation.
-- talk: speak to another person.
+- talk: speak to another person; the exact message matters because the other person interprets it subjectively.
 - every turn also increases hunger by 6 and reduces energy by 3.
 - when hunger reaches 55 and stored food exists, one food is automatically eaten and hunger drops by 45.
 - hunger at 100 means collapse.
