@@ -41,3 +41,33 @@ Every run should record:
 - all structured actions
 - all state-changing events
 - summary metrics
+
+
+## Portability rule
+
+The core agent psychology must not assume a particular kind of world.
+
+Generic traits such as risk tolerance, sociability, generosity, impulsivity,
+competitiveness, trustfulness, curiosity and rule respect can travel between
+experiments.
+
+Scenario concepts do not belong in the core profile. Money, hunger, oxygen,
+teams, votes, weapons, magic, jobs, laws, points or any other experiment-specific
+resource/rule belong to the experiment.
+
+Goals may be assigned per experiment because the same personality can pursue
+different objectives in different situations.
+
+Example:
+
+```text
+same generic agent profile
+        │
+        ├── Tiny Town       → accumulate resources
+        ├── Space station   → keep the reactor alive
+        ├── Reality show    → avoid elimination
+        └── Absurd cult     → convince others the moon is fake
+```
+
+The reusable part is how the agent tends to think and react, not what world it
+happens to inhabit.
