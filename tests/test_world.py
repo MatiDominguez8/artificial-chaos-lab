@@ -160,3 +160,59 @@ def test_talk_preserves_exact_message_in_objective_event():
     event = next(event for event in world.events if event.kind == "talk")
     assert event.message == "I think we should cooperate."
     assert "I think we should cooperate." in event.summary
+
+
+
+def test_cognition_trace_records_both_sides_of_direct_interaction():
+    rng = random.Random(1)
+    cognition = CognitionEngine()
+    world = World(
+        [Agent("Ada"), Agent("Bruno")],
+        TalkPolicy(),
+        rng,
+        cognition=cognition,
+    )
+
+    world.step()
+
+    talk_traces = [
+        trace for trace in cognition.traces
+        if trace.event_kind == "talk"
+    ]
+    assert {trace.observer for trace in talk_traces} == {"Ada", "Bruno"}
+    assert all(trace.event_actor == "Ada" for trace in talk_traces)
+    assert all(trace.event_target == "Bruno" for trace in talk_traces)
+    assert all(
+        trace.message == "I think we should cooperate."
+        for trace in talk_traces
+    )
+
+
+def test_run_can_write_separate_cognition_jsonl(tmp_path):
+    import json
+    from src.acl.simulation import run
+
+    event_log = tmp_path / "events.jsonl"
+    cognition_log = tmp_path / "cognition.jsonl"
+
+    run(
+        turns=1,
+        seed=7,
+        log_path=event_log,
+        cognition_log_path=cognition_log,
+    )
+
+    event_rows = [
+        json.loads(line)
+        for line in event_log.read_text(encoding="utf-8").splitlines()
+    ]
+    cognition_rows = [
+        json.loads(line)
+        for line in cognition_log.read_text(encoding="utf-8").splitlines()
+    ]
+
+    assert event_rows
+    assert cognition_rows
+    assert "observer" not in event_rows[0]
+    assert "observer" in cognition_rows[0]
+    assert "relationship_delta" in cognition_rows[0]
