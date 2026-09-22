@@ -9,6 +9,26 @@ from .policies import OllamaPolicy
 from .simulation import run
 
 
+def build_console_summary(
+    world,
+    *,
+    event_log: Path,
+    cognition_log: Path,
+    console_log: Path,
+) -> str:
+    lines = [f"Finished {world.turn} turns. Events: {len(world.events)}"]
+    for agent in world.agents.values():
+        lines.append(
+            f"{agent.name:>6} | money={agent.money:>4} | "
+            f"hunger={agent.hunger:>3} | energy={agent.energy:>3} "
+            f"| rep={agent.reputation:>3} | alive={agent.alive}"
+        )
+    lines.append(f"Log: {event_log}")
+    lines.append(f"Cognition log: {cognition_log}")
+    lines.append(f"Console log: {console_log}")
+    return "\n".join(lines)
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Run an Artificial Chaos Lab experiment"
@@ -20,6 +40,11 @@ def main() -> None:
         "--cognition-log",
         type=Path,
         default=Path("logs/latest_cognition.jsonl"),
+    )
+    parser.add_argument(
+        "--console-log",
+        type=Path,
+        default=Path("logs/latest_console.log"),
     )
     parser.add_argument(
         "--policy",
@@ -57,6 +82,8 @@ def main() -> None:
 
     args.log.parent.mkdir(parents=True, exist_ok=True)
     args.cognition_log.parent.mkdir(parents=True, exist_ok=True)
+    args.console_log.parent.mkdir(parents=True, exist_ok=True)
+
     world = run(
         turns=args.turns,
         seed=args.seed,
@@ -66,15 +93,14 @@ def main() -> None:
         cognition_log_path=args.cognition_log,
     )
 
-    print(f"Finished {world.turn} turns. Events: {len(world.events)}")
-    for agent in world.agents.values():
-        print(
-            f"{agent.name:>6} | money={agent.money:>4} | "
-            f"hunger={agent.hunger:>3} | energy={agent.energy:>3} "
-            f"| rep={agent.reputation:>3} | alive={agent.alive}"
-        )
-    print(f"Log: {args.log}")
-    print(f"Cognition log: {args.cognition_log}")
+    summary = build_console_summary(
+        world,
+        event_log=args.log,
+        cognition_log=args.cognition_log,
+        console_log=args.console_log,
+    )
+    print(summary)
+    args.console_log.write_text(summary + "\n", encoding="utf-8")
 
 
 if __name__ == "__main__":
