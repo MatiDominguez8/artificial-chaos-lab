@@ -133,6 +133,7 @@ class OllamaPolicy:
             for name, value in sorted(agent.profile.traits.items())
         ]
         goal_lines = [f"- {goal}" for goal in agent.profile.goals]
+        recent_lines = [f"- {item}" for item in agent.working_memory]
 
         system = """You control one person inside a simulation.
 You are NOT the simulation engine and you are NOT omniscient.
@@ -172,6 +173,9 @@ YOUR STARTING PERSONALITY
 
 YOUR CURRENT GOALS
 {chr(10).join(goal_lines) if goal_lines else "- no explicit goals"}
+
+WHAT YOU RECENTLY EXPERIENCED
+{chr(10).join(recent_lines) if recent_lines else "- nothing yet"}
 
 PEOPLE YOU CURRENTLY KNOW
 {chr(10).join(people) if people else "- nobody"}
